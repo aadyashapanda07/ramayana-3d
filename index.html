@@ -10,7 +10,7 @@
 <style>
 :root{
   --gold:#D9A441; --ember:#F2542D; --dawn:#F6C57A; --ink:#0B0E1A;
-  --mist:rgba(246,236,214,.86); --red:#E4453A;
+  --mist:rgba(246,236,214,.86); --red:#ffffff;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
@@ -33,12 +33,12 @@ body{font-family:"EB Garamond",Georgia,serif;color:var(--mist)}
 
 .hud{position:fixed;inset:0;z-index:20;pointer-events:none}
 .chapter{position:absolute;left:6%;top:50%;transform:translateY(-50%);max-width:min(560px,80vw);opacity:0;transition:opacity .5s ease}
-.chapter .tag{font-family:"Tiro Devanagari Hindi",serif;font-size:15px;color:var(--red);letter-spacing:.05em;display:block;margin-bottom:10px;opacity:.9}
-.chapter h2{font-family:"Cinzel",serif;font-weight:500;font-size:clamp(30px,5vw,58px);line-height:1.08;margin:0 0 14px;color:var(--red);text-shadow:0 2px 30px rgba(0,0,0,.6)}
+.chapter .tag{font-family:"Tiro Devanagari Hindi",serif;font-size:15px;color:#ffffff;letter-spacing:.05em;display:block;margin-bottom:10px;opacity:.9}
+.chapter h2{font-family:"Cinzel",serif;font-weight:500;font-size:clamp(30px,5vw,58px);line-height:1.08;margin:0 0 14px;color:#ffffff;text-shadow:0 2px 30px rgba(0,0,0,.6)}
 .chapter p{font-size:clamp(15px,1.6vw,19px);line-height:1.6;color:rgba(246,236,214,.78);max-width:38ch;text-shadow:0 2px 18px rgba(0,0,0,.5)}
-.chapter .num{font-family:"Cinzel",serif;font-size:13px;letter-spacing:.2em;color:rgba(228,69,58,.75);display:block;margin-top:16px}
+.chapter .num{font-family:"Cinzel",serif;font-size:13px;letter-spacing:.2em;color:rgba(255,255,255,.75);display:block;margin-top:16px}
 
-.brand{position:absolute;top:24px;left:6%;font-family:"Cinzel",serif;font-size:14px;letter-spacing:.24em;color:var(--red);opacity:.92}
+.brand{position:absolute;top:24px;left:6%;font-family:"Cinzel",serif;font-size:14px;letter-spacing:.24em;color:#ffffff;opacity:.92}
 .brand span{color:var(--gold)}
 
 .dots{position:absolute;right:22px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:14px;pointer-events:auto}
@@ -64,7 +64,7 @@ body{font-family:"EB Garamond",Georgia,serif;color:var(--mist)}
 
 .gate{position:fixed;inset:0;z-index:15;display:flex;align-items:center;justify-content:center;text-align:center;flex-direction:column;gap:22px;padding:24px;pointer-events:auto;transition:opacity .9s ease,visibility .9s;background:radial-gradient(ellipse at 50% 40%,rgba(20,16,10,0) 0%,rgba(5,6,12,.35) 70%)}
 .gate.hide{opacity:0;visibility:hidden}
-.gate h1{font-family:"Cinzel",serif;font-weight:500;font-size:clamp(34px,7vw,72px);letter-spacing:.03em;margin:0;color:var(--red);text-shadow:0 4px 40px rgba(0,0,0,.6)}
+.gate h1{font-family:"Cinzel",serif;font-weight:500;font-size:clamp(34px,7vw,72px);letter-spacing:.03em;margin:0;color:#ffffff;text-shadow:0 4px 40px rgba(0,0,0,.6)}
 .gate .dev{font-family:"Tiro Devanagari Hindi",serif;font-size:clamp(20px,3vw,30px);color:var(--gold);opacity:.9}
 .gate p{max-width:44ch;font-size:16px;color:rgba(246,236,214,.75);line-height:1.6}
 .enter{all:unset;box-sizing:border-box;padding:14px 34px;border-radius:999px;border:1px solid rgba(246,236,214,.5);font-family:"Cinzel",serif;letter-spacing:.12em;font-size:13px;cursor:pointer;background:rgba(217,164,65,.14)}

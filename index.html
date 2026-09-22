@@ -70,6 +70,25 @@ body{font-family:"EB Garamond",Georgia,serif;color:var(--mist)}
 .enter{all:unset;box-sizing:border-box;padding:14px 34px;border-radius:999px;border:1px solid rgba(246,236,214,.5);font-family:"Cinzel",serif;letter-spacing:.12em;font-size:13px;cursor:pointer;background:rgba(217,164,65,.14)}
 .enter:hover{background:rgba(217,164,65,.26)}
 
+.epilogue{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;pointer-events:none;opacity:0;transform:scale(0.96) translateY(16px);transition:opacity 1s cubic-bezier(0.16,1,0.3,1),transform 1s cubic-bezier(0.16,1,0.3,1);background:radial-gradient(ellipse at 50% 50%,rgba(11,14,26,.72) 0%,rgba(5,6,12,.88) 100%);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.epilogue.show{opacity:1;pointer-events:auto;transform:scale(1) translateY(0)}
+.epilogue-content{max-width:540px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.epilogue-om{font-family:"Tiro Devanagari Hindi",serif;font-size:clamp(22px,3.5vw,32px);color:var(--gold);letter-spacing:.12em;opacity:.95;text-shadow:0 0 25px rgba(217,164,65,.6);animation:epilogueGlow 3s ease-in-out infinite}
+@keyframes epilogueGlow{0%,100%{text-shadow:0 0 20px rgba(217,164,65,.5);opacity:.88}50%{text-shadow:0 0 35px rgba(217,164,65,.9),0 0 10px rgba(246,197,122,.8);opacity:1}}
+.epilogue-title{font-family:"Cinzel",serif;font-weight:500;font-size:clamp(26px,4.5vw,44px);letter-spacing:.06em;margin:0;color:#ffffff;text-shadow:0 2px 25px rgba(0,0,0,.8)}
+.epilogue-divider{display:flex;align-items:center;gap:12px;width:140px;margin:4px 0}
+.epilogue-divider::before,.epilogue-divider::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(217,164,65,.7),transparent)}
+.epilogue-divider span{color:var(--gold);font-size:11px}
+.epilogue-credit-label{font-family:"EB Garamond",serif;font-style:italic;font-size:clamp(16px,1.8vw,20px);color:rgba(246,236,214,.78);margin:4px 0 0}
+.epilogue-author{font-family:"Cinzel",serif;font-weight:600;font-size:clamp(22px,3.8vw,36px);letter-spacing:.22em;background:linear-gradient(135deg,#FFF6E5 0%,#D9A441 50%,#F6C57A 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 24px rgba(217,164,65,.65));margin:2px 0 6px;text-transform:uppercase}
+.epilogue-sub{font-size:12px;letter-spacing:.14em;color:rgba(246,236,214,.6);text-transform:uppercase;margin:0 0 16px}
+.epilogue-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}
+.epilogue-btn{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:999px;font-family:"Cinzel",serif;font-size:12px;letter-spacing:.12em;cursor:pointer;transition:all .3s ease;text-decoration:none}
+.epilogue-btn.primary{background:linear-gradient(135deg,rgba(217,164,65,.25) 0%,rgba(242,84,45,.25) 100%);border:1px solid rgba(217,164,65,.7);color:#ffffff;box-shadow:0 0 20px rgba(217,164,65,.25)}
+.epilogue-btn.primary:hover{background:linear-gradient(135deg,rgba(217,164,65,.45) 0%,rgba(242,84,45,.45) 100%);border-color:var(--gold);box-shadow:0 0 30px rgba(217,164,65,.5);transform:translateY(-2px)}
+.epilogue-btn.secondary{background:rgba(20,18,14,.4);border:1px solid rgba(246,236,214,.25);color:rgba(246,236,214,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.epilogue-btn.secondary:hover{border-color:rgba(246,236,214,.6);color:#ffffff;background:rgba(20,18,14,.65);transform:translateY(-2px)}
+
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (max-width:640px){
   .chapter{left:6%;right:6%;max-width:none}
@@ -126,6 +145,27 @@ body{font-family:"EB Garamond",Georgia,serif;color:var(--mist)}
   </div>
 
   <div class="rail"><i id="railFill"></i></div>
+</div>
+
+<div class="epilogue" id="epilogue" aria-hidden="true">
+  <div class="epilogue-content">
+    <div class="epilogue-om">॥ समाप्तम् ॥</div>
+    <h2 class="epilogue-title">The Journey Concludes</h2>
+    <div class="epilogue-divider"><span>✦</span></div>
+    <p class="epilogue-credit-label">Crafted with devotion &amp; wonder by</p>
+    <div class="epilogue-author">Aadyasha Panda</div>
+    <p class="epilogue-sub">An interactive 3D odyssey through the Ramayana</p>
+    <div class="epilogue-actions">
+      <button class="epilogue-btn primary" id="replayBtn" type="button">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Replay Journey
+      </button>
+      <a class="epilogue-btn secondary" href="https://github.com/aadyashapanda07/ramayana-3d" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
 </div>
 
 <p class="sr-only" id="liveRegion" aria-live="polite"></p>
@@ -867,6 +907,18 @@ const dotsEl = document.getElementById('dots');
 const railFill = document.getElementById('railFill');
 const liveRegion = document.getElementById('liveRegion');
 const hint = document.getElementById('hint');
+const epilogueEl = document.getElementById('epilogue');
+const replayBtn = document.getElementById('replayBtn');
+
+if(replayBtn){
+  replayBtn.addEventListener('click', ()=>{
+    if(epilogueEl){
+      epilogueEl.classList.remove('show');
+      epilogueEl.setAttribute('aria-hidden', 'true');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+}
 
 CH.forEach((c,i)=>{
   const b = document.createElement('button');
@@ -900,6 +952,18 @@ function updateUI(t){
     liveRegion.textContent = 'Chapter '+(idx+1)+' of '+N+': '+c.title;
   }
   hint.style.opacity = t < 0.02 ? 0.85 : 0;
+
+  if(epilogueEl){
+    const isEnd = t >= 0.965;
+    if(isEnd){
+      card.style.opacity = Math.max(0, (0.985 - t) * 50);
+      epilogueEl.classList.add('show');
+      epilogueEl.setAttribute('aria-hidden', 'false');
+    } else {
+      epilogueEl.classList.remove('show');
+      epilogueEl.setAttribute('aria-hidden', 'true');
+    }
+  }
 }
 
 /* ---------- gate + veil ---------- */

@@ -202,7 +202,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 1.18;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 stage.appendChild(renderer.domElement);
@@ -214,27 +214,28 @@ const fog = new THREE.FogExp2(CH[0].fog, CH[0].fogD);
 scene.fog = fog;
 
 /* ---------- lights ---------- */
-const hemi = new THREE.HemisphereLight(0xbcd0ea, 0x4a3a2a, 0.65);
+const hemi = new THREE.HemisphereLight(0xbcd0ea, 0x4a3a2a, 0.68);
 scene.add(hemi);
 
-const sun = new THREE.DirectionalLight(CH[0].sun, 1.6);
+const sun = new THREE.DirectionalLight(CH[0].sun, 1.8);
 sun.position.set(-60, 90, -30);
 sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
-sun.shadow.camera.left = -90; sun.shadow.camera.right = 90;
-sun.shadow.camera.top = 90; sun.shadow.camera.bottom = -90;
-sun.shadow.camera.near = 10; sun.shadow.camera.far = 260;
-sun.shadow.bias = -0.0018;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -95; sun.shadow.camera.right = 95;
+sun.shadow.camera.top = 95; sun.shadow.camera.bottom = -95;
+sun.shadow.camera.near = 10; sun.shadow.camera.far = 280;
+sun.shadow.bias = -0.0007;
+sun.shadow.normalBias = 0.02;
 scene.add(sun);
 scene.add(sun.target);
 
 // cool fill light opposite the sun, so lit figures and buildings don't go flat/black in shadow
-const fill = new THREE.DirectionalLight(0x8fb2d9, 0.5);
+const fill = new THREE.DirectionalLight(0x8fb2d9, 0.52);
 fill.position.set(40, 30, 40);
 scene.add(fill);
 scene.add(fill.target);
 
-/* ---------- procedural textures ---------- */
+/* ---------- procedural textures & normal maps ---------- */
 function canvasTex(size, draw){
   const c = document.createElement('canvas'); c.width = c.height = size;
   const ctx = c.getContext('2d'); draw(ctx, size);
@@ -242,11 +243,62 @@ function canvasTex(size, draw){
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
+
+function normalMapFromHeight(size, heightFn){
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(size, size);
+  const h = new Float32Array(size * size);
+  for(let y=0; y<size; y++){
+    for(let x=0; x<size; x++){
+      h[y*size + x] = heightFn(x/size, y/size);
+    }
+  }
+  for(let y=0; y<size; y++){
+    const yPrev = (y - 1 + size) % size;
+    const yNext = (y + 1) % size;
+    for(let x=0; x<size; x++){
+      const xPrev = (x - 1 + size) % size;
+      const xNext = (x + 1) % size;
+      const dx = (h[y*size + xNext] - h[y*size + xPrev]) * 3.2;
+      const dy = (h[yNext*size + x] - h[yPrev*size + x]) * 3.2;
+      let nx = -dx, ny = -dy, nz = 1.0;
+      const len = Math.sqrt(nx*nx + ny*ny + nz*nz);
+      nx /= len; ny /= len; nz /= len;
+      const idx = (y*size + x)*4;
+      img.data[idx]   = Math.floor((nx*0.5 + 0.5)*255);
+      img.data[idx+1] = Math.floor((ny*0.5 + 0.5)*255);
+      img.data[idx+2] = Math.floor((nz*0.5 + 0.5)*255);
+      img.data[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+const rockNormalTex = normalMapFromHeight(128, (u,v)=>{
+  return Math.sin(u*28.0)*0.35 + Math.cos(v*34.0)*0.35 + Math.sin((u+v)*52.0)*0.2 + (Math.random()-0.5)*0.1;
+});
+rockNormalTex.repeat.set(4, 10);
+
+const barkNormalTex = normalMapFromHeight(128, (u,v)=>{
+  return Math.sin(u*45.0)*0.6 + Math.sin(u*90.0)*0.25 + (Math.random()-0.5)*0.12;
+});
+barkNormalTex.repeat.set(2, 6);
+
+const sandNormalTex = normalMapFromHeight(128, (u,v)=>{
+  return Math.sin(v*32.0 + Math.sin(u*14.0)*0.8)*0.5 + (Math.random()-0.5)*0.15;
+});
+sandNormalTex.repeat.set(24, 120);
+
 const glowTex = canvasTex(256, (ctx,s)=>{
   const g = ctx.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
   g.addColorStop(0,'rgba(255,255,255,1)');
-  g.addColorStop(0.35,'rgba(255,235,200,.65)');
-  g.addColorStop(1,'rgba(255,235,200,0)');
+  g.addColorStop(0.25,'rgba(255,240,210,.85)');
+  g.addColorStop(0.55,'rgba(255,215,160,.4)');
+  g.addColorStop(1,'rgba(255,215,160,0)');
   ctx.fillStyle=g; ctx.fillRect(0,0,s,s);
 });
 const softDot = canvasTex(64, (ctx,s)=>{
@@ -256,10 +308,12 @@ const softDot = canvasTex(64, (ctx,s)=>{
 });
 const cloudTex = canvasTex(256, (ctx,s)=>{
   ctx.clearRect(0,0,s,s);
-  for(let i=0;i<5;i++){
-    const x=s*(0.3+Math.random()*0.4), y=s*(0.4+Math.random()*0.3), r=s*(0.22+Math.random()*0.18);
+  for(let i=0;i<7;i++){
+    const x=s*(0.25+Math.random()*0.5), y=s*(0.35+Math.random()*0.3), r=s*(0.24+Math.random()*0.2);
     const g=ctx.createRadialGradient(x,y,0,x,y,r);
-    g.addColorStop(0,'rgba(255,255,255,.9)'); g.addColorStop(1,'rgba(255,255,255,0)');
+    g.addColorStop(0,'rgba(255,255,255,.88)');
+    g.addColorStop(0.45,'rgba(255,248,235,.55)');
+    g.addColorStop(1,'rgba(255,248,235,0)');
     ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
   }
 });
@@ -288,16 +342,25 @@ const skyMat = new THREE.ShaderMaterial({
     void main(){
       vec3 dir = normalize(vWorldPos);
       float h = clamp(dir.y*0.5+0.5, 0.0, 1.0);
-      vec3 col = mix(bottom, top, pow(h,0.55));
+      vec3 col = mix(bottom, top, pow(h, 0.52));
       float sunAmt = max(dot(dir, normalize(sunDir)), 0.0);
-      col += sunColor * pow(sunAmt, 60.0) * 1.4;
-      col += sunColor * pow(sunAmt, 6.0) * 0.18;
+      
+      // Solar disc and atmospheric scattering corona
+      float sunDisc = smoothstep(0.9985, 0.9995, sunAmt);
+      col += sunColor * (pow(sunAmt, 380.0) * 3.5 + pow(sunAmt, 22.0) * 0.45 + sunDisc * 6.0);
+      
+      // Starfield & celestial dust at night
       float stars = 0.0;
-      vec3 p = dir*400.0;
+      vec3 p = dir * 420.0;
       float cell = fract(sin(dot(floor(p), vec3(12.9898,78.233,37.719)))*43758.5453);
-      if(cell > 0.9975) stars = (cell-0.9975)*400.0;
-      col += vec3(stars)*night*0.9;
-      gl_FragColor = vec4(col,1.0);
+      if(cell > 0.9972) stars = (cell-0.9972) * 450.0;
+      col += vec3(stars) * night * 1.1;
+      
+      // Milky way ribbon
+      float nebula = sin(dir.x*3.2 + dir.z*1.8 + dir.y*4.5)*0.5 + 0.5;
+      col += vec3(0.08, 0.03, 0.1) * pow(nebula, 4.0) * night;
+      
+      gl_FragColor = vec4(col, 1.0);
     }`
 });
 const sky = new THREE.Mesh(new THREE.SphereGeometry(2600, 32, 20), skyMat);
@@ -305,7 +368,7 @@ scene.add(sky);
 
 /* ---------- ground ---------- */
 const groundLen = SPAN*N + 260;
-const groundGeo = new THREE.PlaneGeometry(600, groundLen, 60, 220);
+const groundGeo = new THREE.PlaneGeometry(620, groundLen, 80, 240);
 groundGeo.rotateX(-Math.PI/2);
 {
   const pos = groundGeo.attributes.position;
@@ -313,15 +376,15 @@ groundGeo.rotateX(-Math.PI/2);
   const tmpColor = new THREE.Color();
   for(let i=0;i<pos.count;i++){
     const x = pos.getX(i), z = pos.getZ(i) + groundLen/2 - 130;
-    let h = Math.sin(x*0.02+z*0.01)*1.4 + Math.sin(z*0.045)*1.1;
+    let h = Math.sin(x*0.016 + z*0.01)*2.2 + Math.sin(x*0.038 - z*0.024)*1.2 + Math.sin(z*0.045)*0.8;
     // flatten for ocean stretch (chapters 4.5 - 6.2 roughly)
-    const oceanCenter = SPAN*5.2, oceanHalf = SPAN*1.5;
-    let mask = Math.abs(z - oceanCenter) < oceanHalf ? 0.06 : 1.0;
+    const oceanCenter = SPAN*5.2, oceanHalf = SPAN*1.55;
+    let mask = Math.abs(z - oceanCenter) < oceanHalf ? 0.05 : 1.0;
     // raise near mountains (chapter 4)
     const mtn = SPAN*4.1;
-    if (Math.abs(z-mtn) < SPAN*0.7) h += Math.pow(Math.max(0,1-Math.abs(z-mtn)/(SPAN*0.7)),2) * (Math.sin(x*0.09)*3.5+4.2);
+    if (Math.abs(z-mtn) < SPAN*0.75) h += Math.pow(Math.max(0,1-Math.abs(z-mtn)/(SPAN*0.75)),2) * (Math.sin(x*0.08)*4.2+5.5);
     h *= mask;
-    if (Math.abs(z-oceanCenter) < oceanHalf) h -= 3.0;
+    if (Math.abs(z-oceanCenter) < oceanHalf) h -= 3.2;
     pos.setY(i, h);
     const t = THREE.MathUtils.clamp(z / (SPAN*N), 0, 0.999);
     const idx = Math.min(N-1, Math.floor(t*N));
@@ -335,52 +398,103 @@ groundGeo.rotateX(-Math.PI/2);
 const groundDetailTex = canvasTex(256, (ctx,s)=>{
   const img = ctx.createImageData(s,s);
   for(let i=0;i<img.data.length;i+=4){
-    const g = 150 + Math.floor((Math.random()-0.5)*70);
+    const g = 145 + Math.floor((Math.random()-0.5)*60);
     img.data[i]=g; img.data[i+1]=g; img.data[i+2]=g; img.data[i+3]=255;
   }
   ctx.putImageData(img,0,0);
 });
 groundDetailTex.wrapS = groundDetailTex.wrapT = THREE.RepeatWrapping;
 groundDetailTex.repeat.set(24, 130);
-const groundMat = new THREE.MeshStandardMaterial({ vertexColors:true, map:groundDetailTex, roughness:0.96, metalness:0.02 });
+const groundMat = new THREE.MeshStandardMaterial({
+  vertexColors:true,
+  map:groundDetailTex,
+  normalMap:sandNormalTex,
+  roughness:0.92,
+  metalness:0.03
+});
 const ground = new THREE.Mesh(groundGeo, groundMat);
 ground.position.z = SPAN*N/2 - 130;
 ground.receiveShadow = true;
 scene.add(ground);
 
-/* ---------- ocean ---------- */
+/* ---------- realistic Gerstner wave ocean ---------- */
 const oceanZ = SPAN*5.2;
-const oceanGeo = new THREE.PlaneGeometry(560, SPAN*3.1, 140, 90);
+const oceanGeo = new THREE.PlaneGeometry(620, SPAN*3.2, 160, 100);
 oceanGeo.rotateX(-Math.PI/2);
 const oceanMat = new THREE.ShaderMaterial({
   transparent:true,
   uniforms:{
-    time:{value:0}, deep:{value:new THREE.Color(0x0c2a3c)}, shallow:{value:new THREE.Color(0x2f7f88)},
-    sunColor:{value:new THREE.Color(CH[5].sun)}, sunDir:{value:new THREE.Vector3(-0.4,0.3,-0.8)}
+    time:{value:0},
+    deep:{value:new THREE.Color(0x061e33)},
+    shallow:{value:new THREE.Color(0x23808c)},
+    sunColor:{value:new THREE.Color(CH[5].sun)},
+    sunDir:{value:new THREE.Vector3(-0.4,0.3,-0.8)}
   },
   vertexShader:`
-    uniform float time; varying float vH; varying vec3 vN; varying vec3 vWorldPos;
+    uniform float time;
+    varying float vH;
+    varying vec3 vWorldPos;
+    varying vec3 vNormal;
+
+    vec3 gerstner(vec2 dir, float steepness, float wavelength, vec3 p, inout vec3 tang, inout vec3 binorm){
+      float k = 6.28318 / wavelength;
+      float c = sqrt(9.8 / k);
+      vec2 d = normalize(dir);
+      float f = k * (dot(d, p.xz) - c * time * 0.42);
+      float a = steepness / k;
+      tang += vec3(-d.x*d.x*steepness*sin(f), d.x*steepness*cos(f), -d.x*d.y*steepness*sin(f));
+      binorm += vec3(-d.x*d.y*steepness*sin(f), d.y*steepness*cos(f), -d.y*d.y*steepness*sin(f));
+      return vec3(d.x * a * cos(f), a * sin(f), d.y * a * cos(f));
+    }
+
     void main(){
       vec3 p = position;
-      float h = sin(p.x*0.05 + time*0.6)*0.55 + sin(p.z*0.08 - time*0.9)*0.4 + sin((p.x+p.z)*0.03+time*0.4)*0.6;
-      p.y += h;
-      vH = h;
-      vec4 wp = modelMatrix*vec4(p,1.0);
+      vec3 tang = vec3(1.0, 0.0, 0.0);
+      vec3 binorm = vec3(0.0, 0.0, 1.0);
+      vec3 disp = vec3(0.0);
+      disp += gerstner(vec2(1.0, 0.25), 0.26, 26.0, p, tang, binorm);
+      disp += gerstner(vec2(-0.6, 0.8), 0.2, 15.0, p, tang, binorm);
+      disp += gerstner(vec2(0.35, 0.95), 0.16, 8.5, p, tang, binorm);
+      p += disp;
+      vH = p.y;
+      vec3 norm = normalize(cross(binorm, tang));
+      vNormal = normalize((modelMatrix * vec4(norm, 0.0)).xyz);
+      vec4 wp = modelMatrix * vec4(p, 1.0);
       vWorldPos = wp.xyz;
-      vN = normalize(normalMatrix * vec3(0.0,1.0,0.0));
-      gl_Position = projectionMatrix*viewMatrix*wp;
+      gl_Position = projectionMatrix * viewMatrix * wp;
     }`,
   fragmentShader:`
-    varying float vH; varying vec3 vWorldPos; varying vec3 vN;
-    uniform vec3 deep; uniform vec3 shallow; uniform vec3 sunColor; uniform vec3 sunDir;
+    varying float vH;
+    varying vec3 vWorldPos;
+    varying vec3 vNormal;
+    uniform vec3 deep;
+    uniform vec3 shallow;
+    uniform vec3 sunColor;
+    uniform vec3 sunDir;
+
     void main(){
-      vec3 col = mix(deep, shallow, clamp(vH*0.5+0.5,0.0,1.0));
       vec3 viewDir = normalize(cameraPosition - vWorldPos);
-      float fres = pow(1.0 - max(dot(viewDir, vN),0.0), 3.0);
-      col = mix(col, vec3(0.85,0.92,0.95), fres*0.5);
-      float spec = pow(max(dot(reflect(-normalize(sunDir), vN), viewDir),0.0), 40.0);
-      col += sunColor*spec*1.2;
-      gl_FragColor = vec4(col, 0.92);
+      float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 3.5);
+      
+      float depthFactor = clamp((vH + 1.0) * 0.5, 0.0, 1.0);
+      vec3 waterCol = mix(deep, shallow, depthFactor);
+      
+      // Dynamic foam on wave crests
+      float foam = smoothstep(0.55, 0.95, vH);
+      waterCol = mix(waterCol, vec3(0.92, 0.96, 0.98), foam * 0.7);
+      
+      // Sky reflection
+      vec3 skyReflect = mix(shallow * 1.25, vec3(0.88, 0.93, 0.97), fresnel);
+      vec3 col = mix(waterCol, skyReflect, fresnel * 0.6);
+      
+      // GGX sun glint sparkle on wave facets
+      vec3 lightDir = normalize(sunDir);
+      vec3 halfVec = normalize(lightDir + viewDir);
+      float NdotH = max(dot(vNormal, halfVec), 0.0);
+      float spec = pow(NdotH, 100.0) * 2.6 + pow(NdotH, 18.0) * 0.3;
+      col += sunColor * spec;
+      
+      gl_FragColor = vec4(col, 0.94);
     }`
 });
 const ocean = new THREE.Mesh(oceanGeo, oceanMat);
@@ -405,139 +519,313 @@ function scatter(mesh, count, place){
   mesh.instanceMatrix.needsUpdate = true;
 }
 
-/* ---------- Ayodhya + Return: palace towers ---------- */
-function buildCity(centerZ, gold, warm){
+/* ---------- Ayodhya + Lanka + Return: Vedic architecture ---------- */
+function buildCity(centerZ, goldColor, warmColor, isDarkCity){
   const group = new THREE.Group();
-  const towerGeo = new THREE.CylinderGeometry(2.6, 3.4, 1, 8);
-  const tiers = 5;
-  const positions = [[-18,0],[-9,-14],[9,-14],[18,0],[0,-26],[-26,-6],[26,-6]];
-  positions.forEach((p, idx)=>{
+  
+  // Procedural Shikhara (curvilinear Nagara temple tower)
+  function createShikhara(w, h, goldTip){
     const tg = new THREE.Group();
-    let h = 0; let w = 3.2 + (idx%3);
-    for(let t=0;t<tiers;t++){
-      const th = 3.0 - t*0.4;
-      const mesh = new THREE.Mesh(towerGeo, new THREE.MeshStandardMaterial({ color: idx%2? 0xC9A15E:0xB8874A, roughness:0.75, metalness:0.15 }));
-      mesh.scale.set(w - t*0.5, th, w - t*0.5);
-      mesh.position.y = h + th/2;
-      mesh.castShadow = true; mesh.receiveShadow = true;
-      tg.add(mesh);
-      h += th * 0.82;
+    // Stepped plinth base (Adhisthana)
+    const baseGeo = new THREE.BoxGeometry(w*1.15, 1.2, w*1.15);
+    const stoneCol = isDarkCity ? 0x221a16 : 0xB8874A;
+    const stoneMat = new THREE.MeshStandardMaterial({
+      color: stoneCol,
+      normalMap: rockNormalTex,
+      roughness: 0.82,
+      metalness: 0.12
+    });
+    const base = new THREE.Mesh(baseGeo, stoneMat);
+    base.position.y = 0.6;
+    base.castShadow = base.receiveShadow = true;
+    tg.add(base);
+
+    // Mandapa body with vertical pillars
+    const bodyGeo = new THREE.BoxGeometry(w*0.9, h*0.4, w*0.9);
+    const body = new THREE.Mesh(bodyGeo, stoneMat);
+    body.position.y = 1.2 + (h*0.4)/2;
+    body.castShadow = body.receiveShadow = true;
+    tg.add(body);
+
+    // Curvilinear Shikhara spire tiers
+    const tiers = 6;
+    let currY = 1.2 + h*0.4;
+    const spireH = h*0.7;
+    for(let t=0; t<tiers; t++){
+      const frac = t / tiers;
+      const tierW = (w*0.85) * (1.0 - Math.pow(frac, 1.8)*0.75);
+      const tierH = (spireH / tiers);
+      const tierMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(tierW*0.88, tierW, tierH, 12),
+        stoneMat
+      );
+      tierMesh.position.y = currY + tierH/2;
+      tierMesh.castShadow = true;
+      tg.add(tierMesh);
+      currY += tierH;
     }
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.9,2.4,8), new THREE.MeshStandardMaterial({ color: gold, emissive: gold, emissiveIntensity:0.35, roughness:0.3, metalness:0.6 }));
-    tip.position.y = h + 1.1; tip.castShadow = true;
-    tg.add(tip);
-    tg.position.set(p[0], 0, p[1]);
-    group.add(tg);
+
+    // Amalaka (ribbed stone disc)
+    const amalaka = new THREE.Mesh(
+      new THREE.CylinderGeometry(w*0.38, w*0.48, 0.45, 16),
+      stoneMat
+    );
+    amalaka.position.y = currY + 0.22;
+    amalaka.castShadow = true;
+    tg.add(amalaka);
+
+    // Gleaming Kalash pinnacle (golden spire)
+    const kalashMat = new THREE.MeshStandardMaterial({
+      color: goldTip,
+      emissive: goldTip,
+      emissiveIntensity: isDarkCity ? 0.2 : 0.4,
+      roughness: 0.25,
+      metalness: 0.85
+    });
+    const kalash = new THREE.Mesh(new THREE.ConeGeometry(w*0.22, 1.8, 12), kalashMat);
+    kalash.position.y = currY + 0.45 + 0.9;
+    kalash.castShadow = true;
+    tg.add(kalash);
+
+    return tg;
+  }
+
+  // Palace layout positions
+  const towerConfigs = [
+    { pos: [0, -18], w: 5.4, h: 18.0 },   // Central grand sanctum
+    { pos: [-16, 0], w: 3.8, h: 12.0 },
+    { pos: [16, 0], w: 3.8, h: 12.0 },
+    { pos: [-10, -14], w: 4.2, h: 14.0 },
+    { pos: [10, -14], w: 4.2, h: 14.0 },
+    { pos: [-24, -6], w: 3.2, h: 10.0 },
+    { pos: [24, -6], w: 3.2, h: 10.0 },
+    { pos: [0, -32], w: 4.0, h: 13.0 }
+  ];
+
+  towerConfigs.forEach(cfg=>{
+    const t = createShikhara(cfg.w, cfg.h, goldColor);
+    t.position.set(cfg.pos[0], 0, cfg.pos[1]);
+    group.add(t);
   });
-  // courtyard base
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(40,42,1.4,24), new THREE.MeshStandardMaterial({ color:0xB79256, roughness:0.9 }));
-  base.position.y = -0.6; base.receiveShadow = true;
-  group.add(base);
-  // flag poles
-  const poleGeo = new THREE.CylinderGeometry(0.08,0.08,10,6);
-  const flagGeo = new THREE.PlaneGeometry(2.6,1.5,6,4);
-  [[-14,4],[14,4],[0,-30]].forEach(p=>{
-    const pole = new THREE.Mesh(poleGeo, new THREE.MeshStandardMaterial({color:0x3a2a1a}));
-    pole.position.set(p[0], 5, p[1]);
+
+  // Courtyard & Ghat terrace base
+  const courtGeo = new THREE.CylinderGeometry(42, 45, 1.6, 32);
+  const courtMat = new THREE.MeshStandardMaterial({
+    color: isDarkCity ? 0x1e1612 : 0xB88C52,
+    normalMap: rockNormalTex,
+    roughness: 0.88,
+    metalness: 0.05
+  });
+  const courtyard = new THREE.Mesh(courtGeo, courtMat);
+  courtyard.position.y = -0.7;
+  courtyard.receiveShadow = true;
+  group.add(courtyard);
+
+  // Ceremonial flag poles
+  const poleGeo = new THREE.CylinderGeometry(0.09, 0.09, 12, 6);
+  const flagGeo = new THREE.PlaneGeometry(2.8, 1.6, 8, 4);
+  [[-15, 6], [15, 6], [0, -36]].forEach(p=>{
+    const pole = new THREE.Mesh(poleGeo, new THREE.MeshStandardMaterial({ color: 0x2b1d12, metalness: 0.5, roughness: 0.4 }));
+    pole.position.set(p[0], 6, p[1]);
     group.add(pole);
-    const flag = new THREE.Mesh(flagGeo, new THREE.MeshStandardMaterial({ color: warm, side:THREE.DoubleSide, roughness:0.7 }));
-    flag.position.set(p[0]+1.3, 9, p[1]);
+
+    const flag = new THREE.Mesh(flagGeo, new THREE.MeshStandardMaterial({ color: warmColor, side: THREE.DoubleSide, roughness: 0.65 }));
+    flag.position.set(p[0] + 1.4, 10.8, p[1]);
     flag.userData.flag = true;
     flag.userData.seed = Math.random()*10;
     group.add(flag);
   });
+
   group.position.z = centerZ;
   group.position.y = 0.3;
   scene.add(group);
   return group;
 }
-const ayodhya = buildCity(0, 0xE8B95C, 0xD9642E);
-const lanka = buildCity(SPAN*6, 0xF2C879, 0x8a1f1f);
-lanka.scale.set(1.5,1.9,1.5);
-const returnCity = buildCity(SPAN*7 + 40, 0xE8B95C, 0xD9642E);
-returnCity.scale.set(0.8,0.8,0.8);
 
-/* torches at Lanka */
+const ayodhya = buildCity(0, 0xE8B95C, 0xD9642E, false);
+const lanka = buildCity(SPAN*6, 0xD9A441, 0x8a1f1f, true);
+lanka.scale.set(1.4, 1.7, 1.4);
+const returnCity = buildCity(SPAN*7 + 40, 0xE8B95C, 0xD9642E, false);
+returnCity.scale.set(0.85, 0.85, 0.85);
+
+/* torches at Lanka with dynamic warm flicker */
 const torchGroup = new THREE.Group();
-for(let i=0;i<10;i++){
-  const a = (i/10)*Math.PI*2;
-  const light = new THREE.PointLight(0xff8a3d, 6, 26, 2);
-  light.position.set(Math.cos(a)*34, 6+Math.random()*4, SPAN*6 + Math.sin(a)*34);
+for(let i=0;i<14;i++){
+  const a = (i/14)*Math.PI*2;
+  const light = new THREE.PointLight(0xff7a2a, 7.5, 32, 2);
+  light.position.set(Math.cos(a)*36, 6.5+Math.random()*4, SPAN*6 + Math.sin(a)*36);
   light.userData.baseI = light.intensity;
   light.userData.seed = Math.random()*10;
   torchGroup.add(light);
 }
 scene.add(torchGroup);
 
-/* ---------- forest (chapters 1-3) ---------- */
-const trunkGeo = new THREE.CylinderGeometry(0.35,0.5,5,6);
-const canopyGeo = new THREE.IcosahedronGeometry(2.4,0);
-const trunkMat = new THREE.MeshStandardMaterial({ color:0x4a3624, roughness:0.95 });
-const canopyMat = new THREE.MeshStandardMaterial({ color:0x2f4a24, roughness:0.85 });
-const TREE_COUNT = reduceMotion ? 140 : 260;
+/* ---------- organic forest (chapters 1-3) ---------- */
+const trunkGeo = new THREE.CylinderGeometry(0.24, 0.55, 5.5, 8);
+const trunkMat = new THREE.MeshStandardMaterial({
+  color: 0x3d2b1b,
+  normalMap: barkNormalTex,
+  roughness: 0.94,
+  metalness: 0.02
+});
+
+// Organic multi-lobed canopy geometry
+const canopyGeo = new THREE.DodecahedronGeometry(2.3, 1);
+{
+  const pos = canopyGeo.attributes.position;
+  for(let i=0; i<pos.count; i++){
+    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const n = Math.sin(x*3.0) * Math.cos(z*3.0) * 0.28;
+    pos.set(i, x*(1.0+n), y*(1.1+n*0.5), z*(1.0+n));
+  }
+  canopyGeo.computeVertexNormals();
+}
+const canopyMat = new THREE.MeshStandardMaterial({
+  roughness: 0.72,
+  metalness: 0.05
+});
+
+const TREE_COUNT = reduceMotion ? 150 : 280;
 const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, TREE_COUNT);
 const canopies = new THREE.InstancedMesh(canopyGeo, canopyMat, TREE_COUNT);
+canopies.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(TREE_COUNT * 3), 3);
 trunks.castShadow = canopies.castShadow = true;
-const forestFrom = SPAN*0.8, forestTo = SPAN*3.6;
+canopies.receiveShadow = true;
+
+const forestFrom = SPAN*0.75, forestTo = SPAN*3.65;
+const leafShades = [
+  new THREE.Color(0x23421c),
+  new THREE.Color(0x355422),
+  new THREE.Color(0x486b28),
+  new THREE.Color(0x2b4a24),
+  new THREE.Color(0x5c7329)
+];
+
 scatter(trunks, TREE_COUNT, (d,i)=>{
   const z = forestFrom + Math.random()*(forestTo-forestFrom);
   const side = Math.random()<0.5?-1:1;
-  const x = side*(14 + Math.random()*80);
-  const s = 0.8 + Math.random()*1.1;
-  d.position.set(x, 2.5*s, z);
+  const x = side*(13 + Math.random()*85);
+  const s = 0.8 + Math.random()*1.2;
+  d.position.set(x, 2.75*s, z);
   d.scale.set(s,s,s);
   d.rotation.y = Math.random()*Math.PI;
 });
-// place canopies to match trunk positions precisely
+
+// place canopies and assign natural foliage colors
 {
   const m = new THREE.Matrix4();
+  const tmpCol = new THREE.Color();
   for(let i=0;i<TREE_COUNT;i++){
     trunks.getMatrixAt(i, m);
     const p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
     m.decompose(p,q,s);
-    dummy.position.set(p.x, p.y + 3.2*s.y, p.z);
-    dummy.rotation.set(0, Math.random()*Math.PI, 0);
-    dummy.scale.set(s.x*1.3, s.y*1.1, s.z*1.3);
+    dummy.position.set(p.x, p.y + 3.4*s.y, p.z);
+    dummy.rotation.set((Math.random()-0.5)*0.2, Math.random()*Math.PI, (Math.random()-0.5)*0.2);
+    dummy.scale.set(s.x*1.35, s.y*1.2, s.z*1.35);
     dummy.updateMatrix();
     canopies.setMatrixAt(i, dummy.matrix);
+
+    const baseCol = leafShades[i % leafShades.length];
+    tmpCol.copy(baseCol).multiplyScalar(0.9 + Math.random()*0.2);
+    canopies.setColorAt(i, tmpCol);
   }
   canopies.instanceMatrix.needsUpdate = true;
+  canopies.instanceColor.needsUpdate = true;
 }
 scene.add(trunks, canopies);
 
-/* ---------- mountains (chapter 4) ---------- */
+/* ---------- rugged fractal mountains (chapter 4) ---------- */
 const mtnGroup = new THREE.Group();
-const mtnGeo = new THREE.ConeGeometry(1,1,7);
-for(let i=0;i<18;i++){
-  const side = Math.random()<0.5?-1:1;
-  const h = 30 + Math.random()*46;
-  const r = h*0.5;
-  const mesh = new THREE.Mesh(mtnGeo, new THREE.MeshStandardMaterial({ color:0x5b6270, roughness:1 }));
-  mesh.scale.set(r, h, r);
-  mesh.position.set(side*(60+Math.random()*90), h/2 - 4, SPAN*4 + (Math.random()-0.5)*SPAN*1.3);
-  mesh.rotation.y = Math.random()*Math.PI;
-  mesh.castShadow = true;
-  mtnGroup.add(mesh);
-  if(h>58){
-    const cap = new THREE.Mesh(new THREE.ConeGeometry(r*0.42,h*0.28,7), new THREE.MeshStandardMaterial({ color:0xf4f2ee, roughness:0.9 }));
-    cap.position.set(mesh.position.x, mesh.position.y + h*0.42, mesh.position.z);
-    mtnGroup.add(cap);
+
+function buildRuggedMountain(radius, height, seed){
+  const geo = new THREE.CylinderGeometry(0.08, radius, height, 22, 16);
+  const pos = geo.attributes.position;
+  const colors = new Float32Array(pos.count * 3);
+  const rockDark = new THREE.Color(0x383634);
+  const rockMid = new THREE.Color(0x5c5852);
+  const rockLight = new THREE.Color(0x7c7872);
+  const snow = new THREE.Color(0xf2f4f8);
+  const tmpCol = new THREE.Color();
+
+  for(let i=0; i<pos.count; i++){
+    let x = pos.getX(i);
+    let y = pos.getY(i);
+    let z = pos.getZ(i);
+    const normY = (y + height/2) / height;
+    const angle = Math.atan2(z, x);
+
+    if(normY < 0.98){
+      const ridge = Math.cos(angle * 4.0 + seed) * 0.32 + Math.sin(angle * 7.0 + seed*2.1) * 0.16;
+      const cliff = Math.sin(normY * 16.0 + angle*2.0) * 0.16;
+      const factor = (1.0 + ridge + cliff);
+      pos.setX(i, x * factor);
+      pos.setZ(i, z * factor);
+    }
+
+    if(normY > 0.78 + (Math.sin(angle*3.0)*0.07)){
+      tmpCol.copy(snow);
+    } else if(normY > 0.44){
+      tmpCol.lerpColors(rockMid, rockLight, (normY - 0.44) / 0.34);
+    } else {
+      tmpCol.lerpColors(rockDark, rockMid, normY / 0.44);
+    }
+    tmpCol.multiplyScalar(0.88 + Math.random()*0.22);
+    tmpCol.toArray(colors, i * 3);
   }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    normalMap: rockNormalTex,
+    roughness: 0.88,
+    metalness: 0.08
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+}
+
+for(let i=0;i<22;i++){
+  const side = Math.random()<0.5?-1:1;
+  const h = 34 + Math.random()*52;
+  const r = h * (0.44 + Math.random()*0.16);
+  const mtn = buildRuggedMountain(r, h, i*1.41);
+  mtn.position.set(side*(56+Math.random()*96), h/2 - 4, SPAN*4 + (Math.random()-0.5)*SPAN*1.35);
+  mtn.rotation.y = Math.random()*Math.PI*2;
+  mtnGroup.add(mtn);
 }
 scene.add(mtnGroup);
 
-/* ---------- Ram Setu bridge ---------- */
+/* ---------- Ram Setu bridge: weathered ancient stones ---------- */
 const bridgeGroup = new THREE.Group();
-const stoneGeo = new THREE.BoxGeometry(3.2,1.6,3.2);
-const stoneMat = new THREE.MeshStandardMaterial({ color:0x9a8368, roughness:0.9 });
-const STONES = 46;
+const stoneGeo = new THREE.DodecahedronGeometry(2.2, 1);
+{
+  const pos = stoneGeo.attributes.position;
+  for(let i=0; i<pos.count; i++){
+    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const n = Math.sin(x*4.0) * Math.cos(z*4.0) * 0.22;
+    pos.set(i, x + n, y*0.65 + n*0.5, z + n);
+  }
+  stoneGeo.computeVertexNormals();
+}
+const stoneMat = new THREE.MeshStandardMaterial({
+  color: 0x9e8972,
+  normalMap: rockNormalTex,
+  roughness: 0.48,
+  metalness: 0.12
+});
+const STONES = 52;
 const stoneMeshes = [];
 for(let i=0;i<STONES;i++){
   const mesh = new THREE.Mesh(stoneGeo, stoneMat);
-  const z = oceanZ - SPAN*1.05 + (i/STONES)*SPAN*2.1;
-  mesh.position.set(Math.sin(i*0.4)*1.2, -1.1, z);
-  mesh.rotation.y = Math.random()*0.3;
+  const z = oceanZ - SPAN*1.08 + (i/STONES)*SPAN*2.16;
+  const s = 0.85 + Math.sin(i*0.8)*0.25;
+  mesh.scale.set(s*1.2, s*0.85, s*1.2);
+  mesh.position.set(Math.sin(i*0.42)*1.4, -0.9, z);
+  mesh.rotation.set(Math.sin(i)*0.2, i*0.5, Math.cos(i)*0.2);
   mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.baseScaleY = s*0.85;
   mesh.userData.revealAt = i/STONES;
   mesh.scale.y = 0.001;
   bridgeGroup.add(mesh);
@@ -548,7 +836,7 @@ scene.add(bridgeGroup);
 /* ---------- Sita Haran: golden deer + dark chariot silhouette ---------- */
 const deerGroup = new THREE.Group();
 {
-  const gold = new THREE.MeshStandardMaterial({ color:0xE8C25A, emissive:0xC9902A, emissiveIntensity:0.55, roughness:0.4, metalness:0.3 });
+  const gold = new THREE.MeshStandardMaterial({ color:0xF2C85A, emissive:0xD99A26, emissiveIntensity:0.45, roughness:0.25, metalness:0.8 });
   const body = new THREE.Mesh(new THREE.CapsuleGeometry(1.1,2.2,4,8), gold);
   body.rotation.z = Math.PI/2; body.position.y = 2.2;
   deerGroup.add(body);
@@ -559,7 +847,7 @@ const deerGroup = new THREE.Group();
   const neck = new THREE.Mesh(new THREE.ConeGeometry(0.5,1.8,6), gold);
   neck.position.set(0,3.2,-1.6); neck.rotation.x = -0.5;
   deerGroup.add(neck);
-  const antlerMat = new THREE.MeshStandardMaterial({ color:0xE8C25A, emissive:0xE8C25A, emissiveIntensity:0.4 });
+  const antlerMat = new THREE.MeshStandardMaterial({ color:0xFFDF80, emissive:0xF2B830, emissiveIntensity:0.55, roughness:0.2, metalness:0.85 });
   [-1,1].forEach(s=>{
     const a = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.06,1.6,4), antlerMat);
     a.position.set(s*0.25,4.2,-2.1); a.rotation.z = s*0.5; a.rotation.x = -0.3;
@@ -1122,8 +1410,8 @@ function animate(){
   const bridgeT = THREE.MathUtils.clamp((t*N - 4.15) / 1.4, 0, 1);
   stoneMeshes.forEach((m,i)=>{
     const local = THREE.MathUtils.clamp((bridgeT - m.userData.revealAt*0.7)*3, 0, 1);
-    m.scale.y = THREE.MathUtils.lerp(0.001, 1, local);
-    m.position.y = THREE.MathUtils.lerp(-4, -1.1, local);
+    m.scale.y = THREE.MathUtils.lerp(0.001, m.userData.baseScaleY || 0.85, local);
+    m.position.y = THREE.MathUtils.lerp(-4, -0.9, local);
   });
 
   // flags sway
